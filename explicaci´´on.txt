@@ -1,0 +1,83 @@
+Análisis Detallado del Proyecto de Machine Learning: Modelo Predictivo Bancario
+Este documento describe el proceso completo de análisis y modelado de datos bancarios, siguiendo la metodología CRISP-DM (Cross-Industry Standard Process for Data Mining). El objetivo es construir un modelo de Machine Learning capaz de predecir el nivel de endeudamiento de los clientes en sus tarjetas de crédito.
+
+Fase 1: Entendimiento del Negocio
+Esta fase inicial define el propósito y los objetivos del proyecto desde una perspectiva de negocio.
+
+Problema de Negocio: El banco necesita una herramienta para identificar qué clientes utilizan activamente sus tarjetas y, más importante, predecir su nivel de endeudamiento. Esto permite optimizar estrategias de retención, personalizar ofertas y gestionar el riesgo crediticio de manera más eficiente.
+Objetivo del Modelo (Regresión): El objetivo principal es predecir la variable UsoL1_T12, que representa el monto de deuda que un cliente tiene en su línea de crédito en el último período de tiempo analizado (mes 12).
+Criterios de Éxito: Para que el modelo de regresión sea considerado exitoso, debe cumplir con un R² (Coeficiente de Determinación) superior a 0.7, lo que significaría que el modelo es capaz de explicar al menos el 70% de la variabilidad en el uso de la línea de crédito.
+Hipótesis Iniciales: Se parte de suposiciones lógicas como:
+Clientes con mayor renta y cupo de crédito tenderán a tener mayor endeudamiento.
+La antigüedad y la cantidad de productos contratados influyen en la actividad del cliente.
+Las variables de comportamiento transaccional reciente (gastos, pagos, etc.) son los predictores más fuertes.
+Fase 2: Comprensión de los Datos
+En esta fase se realiza una exploración inicial para familiarizarse con los datos, identificar su calidad y descubrir primeros insights.
+
+Carga Robusta de Datos (Paso 2):
+
+Proceso: Se carga el archivo archivo_convertido.csv. El script es "robusto" porque no asume un formato fijo: detecta automáticamente el separador, limpia los nombres de las columnas y, lo más importante, realiza una conversión de tipos de datos. Muchas columnas numéricas (Renta, Edad, etc.) estaban almacenadas como texto (object), lo que impediría cualquier cálculo. El código las convierte forzosamente a tipo numérico (int o float), un paso crítico que corrige el principal problema del dataset.
+Resultado: Se carga un DataFrame con 51,196 registros y 134 columnas. El df.info() confirma que ahora hay 131 columnas numéricas y solo 3 categóricas, lo cual es correcto para el análisis.
+Análisis Exploratorio de Datos (EDA) (Pasos 3 y 5):
+
+Proceso: Se calculan estadísticas descriptivas (df.describe()) y se generan visualizaciones. Para agilizar los gráficos, se utiliza una muestra de 5,000 registros (sample_df).
+Hallazgos Clave:
+Distribuciones Sesgadas: Los histogramas de variables financieras como Renta y CUPO_L1 muestran un fuerte sesgo a la derecha. Esto significa que la mayoría de los clientes tienen valores bajos o medios, pero hay unos pocos con valores extremadamente altos. Esto confirma que usar la mediana en lugar de la media será más representativo.
+Valores Faltantes: Se detecta que casi todas las columnas (134) tienen valores nulos, lo que requerirá una estrategia de tratamiento.
+Diferencia de Escalas: Las variables tienen rangos muy distintos (la edad va de 18 a 80, mientras que la renta puede llegar a millones). Esto confirma la necesidad de escalar los datos antes de entrenar modelos sensibles a la escala.
+Fase 3: Preparación de los Datos
+Esta es la fase más extensa, donde se limpia y transforma el dataset para dejarlo en un formato óptimo para el modelado.
+
+Análisis y Tratamiento de Valores Faltantes (Pasos 4 y 6):
+
+Proceso: Primero, se cuantifican los datos faltantes. Se confirma que ninguna columna supera el 30% de valores nulos, por lo que no es necesario eliminar ninguna. Luego, se procede a la imputación:
+Variables Numéricas: Se rellenan los valores nulos con la mediana de su respectiva columna. Se elige la mediana por ser robusta a los outliers detectados en la fase anterior.
+Variables Categóricas: Se rellenan con la moda (el valor más frecuente).
+Resultado: Se obtiene un DataFrame df_clean completamente libre de valores nulos.
+Análisis y Tratamiento de Outliers (Paso 7):
+
+Proceso: Se utilizan diagramas de caja (boxplots) para visualizar valores atípicos. Se confirma que variables como CUPO_L1 y UsoL1_T12 tienen un alto porcentaje de outliers (16-20%).
+Decisión y Justificación: Se decide no eliminar estos outliers. En un contexto bancario, estos valores no son errores, sino que representan a clientes con un comportamiento financiero real (ej. clientes de alta renta con cupos muy elevados). Eliminarlos sesgaría el modelo y le impediría aprender de estos casos importantes.
+Ingeniería de Características (Paso 6B):
+
+Proceso: Se aplica una estrategia de reducción de dimensionalidad temporal. El dataset contiene variables de comportamiento para 12 meses (sufijo _T1 a _T12). Para simplificar el modelo y evitar redundancia, el script se queda únicamente con las variables del último período (_T12) y las variables no temporales (como Edad o Renta).
+Resultado: El número de columnas se reduce drásticamente de 134 a 49, haciendo el modelo más simple, rápido de entrenar y menos propenso a problemas de multicolinealidad.
+Fase 4: Transformación de Datos
+Con los datos ya limpios, se realizan las transformaciones finales.
+
+Codificación de Variables Categóricas (Encoding) (Paso 8):
+
+Proceso: Los modelos matemáticos solo entienden números, por lo que las 3 columnas categóricas restantes se convierten:
+One-Hot Encoding: Se aplica a Sexo y Region. Esta técnica crea nuevas columnas binarias (0/1) para cada categoría, evitando crear una relación de orden artificial.
+Label Encoding: Se aplica a Cod_Est_Civil por tener más categorías. Asigna un número único a cada estado civil.
+Resultado: Se obtiene el DataFrame df_transformed, que contiene únicamente datos numéricos.
+Escalamiento de Variables Numéricas (Paso 9):
+
+Proceso: Se aplica StandardScaler a todas las variables predictoras. Este escalador transforma los datos para que tengan una media de 0 y una desviación estándar de 1.
+Justificación: Este paso es crucial para los modelos de regularización (Ridge y Lasso), ya que asegura que todas las variables contribuyan de manera equitativa al modelo, independientemente de su escala original. La variable objetivo UsoL1_T12 se excluye correctamente del escalado.
+Análisis de Correlación y Duplicados (Paso 10):
+
+Proceso: Se eliminan 11 registros duplicados para no sesgar el entrenamiento. Luego, se calcula una matriz de correlación y se visualiza con un mapa de calor.
+Hallazgos: Se detectan pares de variables con correlación muy alta (>0.85), como FacDebAtm_T12 (monto facturado en cajeros) y TxsDebAtm_T12 (número de transacciones en cajeros). Esto es lógico y, aunque no se eliminan más variables, los modelos de regularización ayudarán a gestionar esta redundancia.
+Fase 5 y 6: Modelado y Evaluación
+Finalmente, se entrena y evalúa el modelo predictivo.
+
+División de Datos y Modelado con Pipeline (Paso 12):
+
+Proceso: El dataset final (df_final) se divide en un conjunto de entrenamiento (80%) y uno de prueba (20%). Se utiliza un Pipeline de Scikit-Learn, que es una práctica recomendada. El pipeline encadena el escalado de datos y el modelo, asegurando que el escalador se "ajuste" únicamente con los datos de entrenamiento, lo que previene la fuga de información (data leakage).
+Modelos Entrenados: Se entrenan dos modelos de regresión lineal con regularización:
+Ridge: Penaliza los coeficientes grandes para evitar el sobreajuste, pero mantiene todas las variables.
+Lasso: También penaliza coeficientes y puede reducirlos exactamente a cero, realizando una selección automática de características.
+Evaluación de Resultados (Paso 13):
+
+Proceso: Se evalúan los modelos en el conjunto de prueba usando las métricas definidas.
+Resultados Finales:
+Mejor Modelo: El modelo Ridge con un parámetro de regularización alpha=10.0 fue seleccionado como el mejor.
+Métricas de Rendimiento:
+R²: 0.9883. Esto significa que el modelo explica el 98.8% de la variabilidad en el uso de la línea de crédito, superando masivamente el criterio de éxito del 70%.
+RMSE (Error Cuadrático Medio Raíz): 1,292.97. En promedio, las predicciones del modelo se desvían en aproximadamente $1,293 del valor real.
+Visualización: El gráfico de "Predicción vs. Real" muestra los puntos muy agrupados en torno a la línea diagonal, lo que confirma visualmente la altísima precisión del modelo.
+Conclusión General
+El proyecto fue un éxito rotundo. Siguiendo la metodología CRISP-DM, se logró construir un modelo de regresión extremadamente preciso (R² ≈ 0.99) para predecir el endeudamiento de los clientes.
+
+El éxito se atribuye a un preprocesamiento de datos meticuloso (correcta tipificación, imputación robusta y reducción de dimensionalidad temporal) y a la aplicación de buenas prácticas de modelado (uso de Pipelines para evitar la fuga de datos). El modelo resultante es una herramienta valiosa y fiable para que el negocio pueda tomar decisiones informadas.
